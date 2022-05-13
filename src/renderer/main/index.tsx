@@ -1,9 +1,15 @@
 import { createRoot } from 'react-dom/client';
+import { ChakraProvider } from '@chakra-ui/react';
 import App from './App';
+import './index.css';
 
 const container = document.getElementById('root')!;
 const root = createRoot(container);
-root.render(<App />);
+root.render(
+  <ChakraProvider>
+    <App />
+  </ChakraProvider>
+);
 
 // calling IPC exposed from preload script
 window.electron.ipcRenderer.once('ipc-example', (arg) => {
