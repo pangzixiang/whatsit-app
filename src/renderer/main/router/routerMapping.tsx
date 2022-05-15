@@ -1,9 +1,14 @@
-import MainPage from '../pages/mainPage';
+import Main from '../pages/main';
+import Settings from '../pages/settings';
 
 const RouterMapping = [
   {
     path: '/',
-    component: <MainPage />,
+    component: <Main />,
+  },
+  {
+    path: '/settings',
+    component: <Settings />,
   },
 ];
 

@@ -9,11 +9,30 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  Notification,
+  Tray,
+  Menu,
+  nativeImage,
+} from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
-import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import Repository from './dao/repository';
+
+const db = new Repository();
+
+const RESOURCES_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, 'assets')
+  : path.join(__dirname, '../../assets');
+
+const getAssetPath = (...paths: string[]): string => {
+  return path.join(RESOURCES_PATH, ...paths);
+};
 
 export default class AppUpdater {
   constructor() {
@@ -24,6 +43,8 @@ export default class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+let hideWhenClose = false;
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
@@ -61,18 +82,12 @@ const createWindow = async () => {
     await installExtensions();
   }
 
-  const RESOURCES_PATH = app.isPackaged
-    ? path.join(process.resourcesPath, 'assets')
-    : path.join(__dirname, '../../assets');
-
-  const getAssetPath = (...paths: string[]): string => {
-    return path.join(RESOURCES_PATH, ...paths);
-  };
-
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    width: 1400,
+    height: 900,
+    titleBarStyle: 'hidden',
+    resizable: false,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged
@@ -82,6 +97,15 @@ const createWindow = async () => {
   });
 
   mainWindow.loadURL(resolveHtmlPath('main/index.html'));
+
+  ipcMain.on('close-main-window', () => {
+    if (hideWhenClose) mainWindow?.hide();
+    else mainWindow?.close();
+  });
+
+  ipcMain.on('minimize-main-window', () => {
+    mainWindow?.hide();
+  });
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
@@ -97,9 +121,6 @@ const createWindow = async () => {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
-
-  const menuBuilder = new MenuBuilder(mainWindow);
-  menuBuilder.buildMenu();
 
   // Open urls in the user's browser
   mainWindow.webContents.setWindowOpenHandler((edata) => {
@@ -126,6 +147,54 @@ app.on('window-all-closed', () => {
 
 app
   .whenReady()
+  .then(() => {
+    new Notification({
+      title: app.name,
+      body: 'Application is starting...',
+    }).show();
+  })
+  .then(() => {
+    db.start((database) => {
+      database.get(
+        'SELECT * FROM cache WHERE key = ?',
+        'hideWhenClose',
+        (_error: any, row: any) => {
+          hideWhenClose = row.value === 1;
+          log.log(`HideWhenClose: ${hideWhenClose}`);
+          const icon = nativeImage.createFromPath(getAssetPath('icon.ico'));
+          const tray = new Tray(icon);
+          const contextMenu = Menu.buildFromTemplate([
+            {
+              label: 'Hide When click close button',
+              type: 'checkbox',
+              checked: hideWhenClose,
+              click() {
+                hideWhenClose = !hideWhenClose;
+                database.run(
+                  'update cache set value = ? where key = ?',
+                  hideWhenClose,
+                  'hideWhenClose'
+                );
+              },
+            },
+            {
+              label: 'Close',
+              click() {
+                mainWindow?.close();
+              },
+            },
+          ]);
+          tray.setContextMenu(contextMenu);
+          tray.setToolTip('Whatsit App');
+          tray.on('double-click', () => {
+            if (mainWindow) {
+              mainWindow.show();
+            }
+          });
+        }
+      );
+    });
+  })
   .then(() => {
     createWindow();
     app.on('activate', () => {
