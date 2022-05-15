@@ -75,6 +75,14 @@
       ],
       "requestedExecutionLevel": "requireAdministrator"
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "deleteAppDataOnUninstall": true,
+      "menuCategory": true
+    },
     "linux": {
       "target": [
         "AppImage"

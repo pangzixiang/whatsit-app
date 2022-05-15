@@ -14,7 +14,6 @@ import {
   BrowserWindow,
   shell,
   ipcMain,
-  Notification,
   Tray,
   Menu,
   nativeImage,
@@ -148,12 +147,6 @@ app.on('window-all-closed', () => {
 app
   .whenReady()
   .then(() => {
-    new Notification({
-      title: app.name,
-      body: 'Application is starting...',
-    }).show();
-  })
-  .then(() => {
     db.start((database) => {
       database.get(
         'SELECT * FROM cache WHERE key = ?',
@@ -203,4 +196,10 @@ app
       if (mainWindow === null) createWindow();
     });
   })
+  // .then(() => {
+  //   new Notification({
+  //     title: app.name,
+  //     body: 'Application started!',
+  //   }).show();
+  // })
   .catch(console.log);
